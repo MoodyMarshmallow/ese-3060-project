@@ -24,6 +24,8 @@ Notes:
 - `NPROC` must not exceed visible GPUs (auto-detected if unset).
 - Logs: `logs/<run_id>.txt`; summary rows: `experiments/results.csv`.
 
+If you want **analysis-only** (no risk of launching runs), open `notebooks/stage1_eda_only.ipynb` instead; it reads results/logs using relative paths.
+
 ---
 
 ## Option B — Shell script to run; notebook for EDA
@@ -39,6 +41,7 @@ Notes:
    - headwise ns_sigmoid (sparsity control)
    - const sigmoid (query-independent control)
 2) Start JupyterLab (same as above) and open `notebooks/stage1_runs_and_eda.ipynb` — it will read existing results/logs and plot without launching new runs.
+   - Or open `notebooks/stage1_eda_only.ipynb` if you only want visualization.
 
 ---
 

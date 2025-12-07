@@ -558,9 +558,11 @@ for step in range(args.num_iterations + 1):
         # stop the clock
         torch.cuda.synchronize()
         training_time_ms += 1000 * (time.time() - t0)
-        # save the state of the training process
+        # save the state of the training process in a subdir to keep logs tidy
+        ckpt_dir = os.path.join(logdir, "checkpoints")
+        os.makedirs(ckpt_dir, exist_ok=True)
         log = dict(step=step, code=code, model=raw_model.state_dict(), optimizers=[opt.state_dict() for opt in optimizers])
-        torch.save(log, 'logs/%s/state_step%06d.pt' % (run_id, step))
+        torch.save(log, os.path.join(ckpt_dir, f"state_step{step:06d}.pt"))
         # start the clock again
         torch.cuda.synchronize()
         t0 = time.time()
