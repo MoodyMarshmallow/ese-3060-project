@@ -16,7 +16,7 @@ sudo apt-get install -y build-essential git python3.10 python3.10-venv python3-p
 
 ## 3) Clone repo and create env
 ```bash
-git clone <your-fork-or-repo-url> ese-3060-project
+git clone https://github.com/MoodyMarshmallow/ese-3060-project.git ese-3060-project
 cd ese-3060-project
 python3 -m venv .venv
 source .venv/bin/activate
@@ -26,10 +26,24 @@ pip install -r requirements.txt
 Ensure the PyTorch wheel matches your CUDA version (the requirements pin should pull a CUDA build).
 
 ## 4) Prepare data
-- Place FineWeb train/val shards here:
-  - `data/fineweb10B/fineweb_train_*.bin`
-  - `data/fineweb10B/fineweb_val_*.bin`
-- The loader expects the `.bin` header magic `20240520` and enough tokens for your batch/seq settings.
+You need GPT-2–tokenized FineWeb shards with the header magic `20240520`.
+
+### Option A: Download cached shards (fast, recommended)
+```bash
+# From repo root
+python cached_fineweb10B.py 9          # download first 900M training tokens, as specified in the original repo.
+# Place where the loader expects them
+mkdir -p data
+ln -s ../fineweb10B data/fineweb10B   # creates data/fineweb10B -> fineweb10B
+```
+Notes:
+- Uses `huggingface_hub`; requires network and ~20–30 GB free disk for the full set.
+- Re-run only if you need more chunks; existing files are reused.
+
+### Option B: Use your own pre-tokenized bins
+- Ensure files are named `fineweb_train_*.bin` and `fineweb_val_*.bin`.
+- Put them in `data/fineweb10B/`.
+- Each bin must contain enough tokens for your batch/seq/num_gpus (header checked at load).
 
 ## 5) Optional: set baseline env vars
 ```bash
@@ -40,7 +54,7 @@ set +a
 You can override GPU count or run count when launching (see next step).
 
 ## 6) Run baseline (Stage 0)
-Use the helper script; it runs the ungated model `COUNT` times with incrementing seeds.
+Use the helper script; it runs the ungated model `COUNT` times with incrementing seeds. The script auto-detects GPU count via `nvidia-smi` and will refuse to run if `NPROC` exceeds available GPUs.
 ```bash
 # Default: 3 runs, seeds 1337-1339, 8 GPUs
 scripts/run_baseline.sh

@@ -15,10 +15,21 @@
 
 set -euo pipefail
 
-NPROC="${NPROC:-8}"
+if command -v nvidia-smi >/dev/null 2>&1; then
+  GPU_COUNT=$(nvidia-smi --list-gpus 2>/dev/null | wc -l | tr -d ' ')
+else
+  GPU_COUNT=0
+fi
+
+NPROC="${NPROC:-${GPU_COUNT:-8}}"
 COUNT="${COUNT:-3}"
 BASE_SEED="${BASE_SEED:-1337}"
 SCRIPT="${SCRIPT:-train_gpt.py}"
+
+if [ "${GPU_COUNT}" -gt 0 ] && [ "${NPROC}" -gt "${GPU_COUNT}" ]; then
+  echo "Error: requested NPROC=${NPROC} but only ${GPU_COUNT} GPU(s) detected. Set NPROC <= ${GPU_COUNT} or adjust CUDA_VISIBLE_DEVICES." >&2
+  exit 1
+fi
 
 for i in $(seq 0 $((COUNT-1))); do
   SEED=$((BASE_SEED + i))
