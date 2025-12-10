@@ -58,18 +58,38 @@ All runs use the provided data pipeline; no data-order changes; torch.compile en
 - Elementwise/sigmoid SDPA gating is best: ~0.5% lower val loss than baseline.
 - Ordering matches paper: elementwise > headwise; sigmoid > ns-sigmoid; const slightly worse than baseline.
 
+**Table (from `experiments/tables/stage1.csv`):**
+- const (sigmoid): seeds=2, final_loss=3.5383, train_time=10m 9.1s
+- elementwise (sigmoid): seeds=2, final_loss=3.5159, train_time=10m 31.0s
+- headwise (ns_sigmoid): seeds=2, final_loss=3.5272, train_time=10m 11.4s
+- headwise (sigmoid): seeds=2, final_loss=3.5312, train_time=10m 15.7s
+- none: seeds=2, final_loss=3.5334, train_time=9m 52.9s
+
 ### Stage 2 (800 iters, LR sweep {0.0036, 0.00396, 0.00432, 0.00468}, 2 seeds)
 - Higher LR helps both baseline and gating.
 - Gating adds ~6% step-time overhead; early-loss advantage small at 800 steps.
+
+**Table (from `experiments/tables/stage2.csv`):**
+- elementwise: lr 0.0036 → 3.9349 (5m 35.7s); 0.00396 → 3.9115 (5m 32.5s); 0.00432 → 3.8920 (5m 31.9s); 0.00468 → 3.8743 (5m 34.6s)
+- none: lr 0.0036 → 3.9167 (5m 14.5s); 0.00396 → 3.8964 (5m 14.6s); 0.00432 → 3.8798 (5m 13.2s); 0.00468 → 3.8640 (5m 15.3s)
 
 ### Stage 2.5 (1500 iters @ LR=0.00468, 2 seeds)
 - Elementwise gate: final val loss ≈ 3.5099 vs baseline 3.5298 (~0.6% better) at same steps.
 - Wall-clock advantage small; step time still ~6% slower.
 
+**Table (from `experiments/tables/stage2_5.csv`):**
+- elementwise: lr 0.00468, iters 1500 → final_loss 3.5099 (10m 29.8s)
+- none: lr 0.00468, iters 1500 → final_loss 3.5298 (9m 56.8s)
+
 ### Stage 3 (5100 iters full runs, 3 seeds each @ LR=0.00468)
 - Elementwise gate: mean final val loss ≈ 3.2723 vs tuned baseline 3.2927 (~0.6% better).
 - Cost: ~6% longer wall-clock; gains are accuracy at fixed steps, not raw speed.
 - One reference run of original baseline @ LR=0.0036: ~3.2938.
+
+**Table (from `experiments/tables/stage3.csv`):**
+- elementwise: lr 0.00468, seeds=3 → final_loss 3.2723 (26m 10.9s)
+- none: lr 0.00468, seeds=3 → final_loss 3.2927 (24m 36.9s)
+- none: lr 0.0036, seeds=1 → final_loss 3.2938 (24m 36.9s)
 
 ## Files to Check
 - Results: `experiments/results.csv` and stage splits (`results_stage1.csv`, `results_stage2.csv`, `results_stage2_5.csv`, etc.).
@@ -80,4 +100,3 @@ All runs use the provided data pipeline; no data-order changes; torch.compile en
 - Do not change data ordering or add extra torch.compile flags beyond the baseline settings.
 - Muon optimizer expects only 2D params in `transformer.h`; gating layers are bias-free/2D to stay Muon-safe.
 - torch.compile adds ~5–10 minutes on first run (CPU-side graph build) while GPU memory is already allocated.
-
