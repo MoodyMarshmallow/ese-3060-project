@@ -1,0 +1,4 @@
+attn_gate,learning_rate,seeds,final_loss,train_time
+elementwise,0.00468,3,3.272270600001017,26m 10.9s
+none,0.00468,3,3.292698701222738,24m 36.9s
+none,0.0036,1,3.2938,24m 36.9s

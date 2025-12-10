@@ -1,0 +1,6 @@
+attn_gate,gate_act,seeds,final_loss,train_time
+const,sigmoid,2,3.5383152961730957,10m 9.1s
+elementwise,sigmoid,2,3.515898585319519,10m 31.0s
+headwise,ns_sigmoid,2,3.5272133350372314,10m 11.4s
+headwise,sigmoid,2,3.531156539916992,10m 15.7s
+none,sigmoid,2,3.533365488052368,9m 52.9s

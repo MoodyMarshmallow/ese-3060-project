@@ -1,0 +1,3 @@
+attn_gate,learning_rate,num_iterations,final_loss,train_time
+elementwise,0.00468,1500,3.5099178552627563,10m 29.8s
+none,0.00468,1500,3.5298084020614624,9m 56.8s

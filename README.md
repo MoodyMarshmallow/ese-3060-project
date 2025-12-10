@@ -1,68 +1,83 @@
-# ESE 3060 Final Project Fall 2025
+# ESE 3060 Final Project (Gated Attention Experiments)
 
-## Project Overview
-This project contains two machine learning training benchmarks:
-- **airbench94.py**: CIFAR-10 image classification benchmark
-- **train_gpt.py**: GPT-2 training on the FineWeb-10B dataset
-
-## Setup and Installation
-
-### Prerequisites
-- Python 3.8+
-- NVIDIA GPU (A100/H100 recommended)
-- CUDA 11.7 or later
-
-### Dependencies
-Install all required packages:
+## Quick Start — Best Current Run
+Full-length run with the best-performing config: elementwise SDPA-output gating at higher LR.
 ```bash
-pip install -r requirements.txt
-```
+cd /workspace/ese-3060-project
+source .venv/bin/activate    # or your env
 
-## Running airbench94.py
+# Data: expects FineWeb bins at /workspace/fineweb10B; symlink if needed
+mkdir -p data
+ln -s /workspace/fineweb10B data/fineweb10B   # adjust if your data lives elsewhere
 
-### Overview
-CIFAR-10 training benchmark achieving 94.01% average accuracy in 3.83 seconds on an NVIDIA A100. You will want to use a single node of an a100.
-- CIFAR-10 dataset automatically downloaded on first run
-- Cached to `cifar10/` directory as `.pt` files for faster subsequent runs
+export ATTNGATE=elementwise
+export GATEPOS=sdpa
+export GATEACT=sigmoid
+export LR=0.00468
+export NUM_ITERATIONS=5100
+export WARMDOWN_ITERS=1450
+# optional: SEED, VAL_EVERY, WARMUP_ITERS, etc.
 
-### Execution
-```bash
-python airbench94.py
-```
-
-Runs 25 training iterations and reports mean/standard deviation accuracy metrics.
-
-### Output
-- Per-epoch training metrics (loss, accuracy)
-- Validation and test-time augmentation (TTA) accuracy
-- Logs saved to `logs/{uuid}/log.pt`
-
-### Hardware Requirements
-- NVIDIA A100 GPU recommended
-- CUDA 11.7+
-- NVIDIA Driver 515.105.01 or compatible
-
-### Reference
-Based on: [cifar10-airbench legacy airbench94.py](https://github.com/KellerJordan/cifar10-airbench/blob/master/legacy/airbench94.py)
-
-## Running train_gpt.py
-
-### Overview
-Trains a GPT-2 model on the FineWeb-10B dataset. You will want to use an 8xH100.
-
-### Execution
-Download the data with 
-```bash
-python cached_fineweb10B.py 9
-```
-and then run the script with 
-```bash
 torchrun --standalone --nproc_per_node=8 train_gpt.py
 ```
+Logs land in `logs/<run_id>.txt`, summary row in `experiments/results.csv`.
 
-### Hardware Requirements
-- Tested on 8× NVIDIA H100 80GB GPUs
-- PyTorch 2.4.1+ with CUDA 12.1
+## Repo Layout
+- `train_gpt.py` — NanoGPT-style transformer with SDPA-output gating options and logging.
+- `cached_fineweb10B.py` — download GPT-2 tokenized FineWeb10B shards from HF into `/workspace/fineweb10B`.
+- `scripts/run_baseline.sh` — baseline launcher; `scripts/split_results.py` — splits results into stage files.
+- `notebooks/` — launchers/EDA for stages 1, 2, 2.5, 3, and final figures.
+- `experiments/` — aggregated results CSVs and parsed curves.
+- `logs/` — per-run logs (code + metrics).
 
-### Reference
-Based on: [modded-nanogpt record number #5](https://github.com/KellerJordan/modded-nanogpt/blob/master/records/track_1_short/2024-10-14_ModernArch/dabaaddd-237c-4ec9-939d-6608a9ed5e27.txt)
+## Data Prep
+```bash
+cd /workspace/ese-3060-project
+python cached_fineweb10B.py 9        # first 9 chunks (~900M tokens) for quick starts; omit arg for full set
+mkdir -p data
+ln -s /workspace/fineweb10B data/fineweb10B
+```
+If your data lives elsewhere, set `input_bin`/`input_val_bin` in `train_gpt.py` or adjust the symlink.
+
+## How to Launch Other Configs
+Use env vars to override defaults (no code edits needed):
+- `ATTNGATE` = `none|headwise|elementwise|const`
+- `GATEPOS` = `sdpa|value`
+- `GATEACT` = `sigmoid|ns_sigmoid`
+- `LR`, `SEED`, `NUM_ITERATIONS`, `WARMUP_ITERS`, `WARMDOWN_ITERS`, `VAL_EVERY`
+
+Example baseline (no gate) short run:
+```bash
+ATTNGATE=none NUM_ITERATIONS=1500 torchrun --standalone --nproc_per_node=8 train_gpt.py
+```
+
+## Experiment Summary (from `ESE_3060_Final_Project (1).pdf`)
+All runs use the provided data pipeline; no data-order changes; torch.compile enabled.
+
+### Stage 1 (1500 iters @ LR=0.0036, 2 seeds)
+- Elementwise/sigmoid SDPA gating is best: ~0.5% lower val loss than baseline.
+- Ordering matches paper: elementwise > headwise; sigmoid > ns-sigmoid; const slightly worse than baseline.
+
+### Stage 2 (800 iters, LR sweep {0.0036, 0.00396, 0.00432, 0.00468}, 2 seeds)
+- Higher LR helps both baseline and gating.
+- Gating adds ~6% step-time overhead; early-loss advantage small at 800 steps.
+
+### Stage 2.5 (1500 iters @ LR=0.00468, 2 seeds)
+- Elementwise gate: final val loss ≈ 3.5099 vs baseline 3.5298 (~0.6% better) at same steps.
+- Wall-clock advantage small; step time still ~6% slower.
+
+### Stage 3 (5100 iters full runs, 3 seeds each @ LR=0.00468)
+- Elementwise gate: mean final val loss ≈ 3.2723 vs tuned baseline 3.2927 (~0.6% better).
+- Cost: ~6% longer wall-clock; gains are accuracy at fixed steps, not raw speed.
+- One reference run of original baseline @ LR=0.0036: ~3.2938.
+
+## Files to Check
+- Results: `experiments/results.csv` and stage splits (`results_stage1.csv`, `results_stage2.csv`, `results_stage2_5.csv`, etc.).
+- Curves: `experiments/log_curves_*.csv`.
+- Logs: `logs/<run_id>.txt` (includes git hash, args, nvidia-smi, val/train traces).
+
+## Constraints & Notes
+- Do not change data ordering or add extra torch.compile flags beyond the baseline settings.
+- Muon optimizer expects only 2D params in `transformer.h`; gating layers are bias-free/2D to stay Muon-safe.
+- torch.compile adds ~5–10 minutes on first run (CPU-side graph build) while GPU memory is already allocated.
+
