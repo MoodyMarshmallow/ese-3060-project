@@ -1,4 +1,6 @@
 # ESE 3060 Final Project Part 2
+NanoGPT speedrun project for ESE 3060: exploring gated attention as an architectural tweak on top of a modded-nanogpt speedrun baseline.
+We implement SDPA-output sigmoid gating inspired by [Gated Attention for Large Language Models](https://arxiv.org/pdf/2505.06708).
 
 ## Quick Start — Best Current Run
 Full-length run with the best-performing config: elementwise SDPA-output gating at higher LR.
@@ -29,6 +31,14 @@ Logs land in `logs/<run_id>.txt`, summary row in `experiments/results.csv`.
 - `notebooks/` — launchers/EDA for stages 1, 2, 2.5, 3, and final figures.
 - `experiments/` — aggregated results CSVs and parsed curves.
 - `logs/` — per-run logs (code + metrics).
+
+## Model Modifications Tested
+- **SDPA-output gating (G1)** inside `CausalSelfAttention`: multiplicative gate applied to SDPA output before the per-head output projection. Variants:
+  - `attn_gate`: `none` (baseline), `headwise` (one gate per head), `elementwise` (one gate per hidden dim), `const` (learned input-independent per-head gate). All implemented bias-free to remain Muon-safe.
+  - `gate_pos`: `sdpa` (after attention output, paper’s main G1); experiments here use SDPA only.
+  - `gate_act`: `sigmoid` (sparse, recommended) or `ns_sigmoid` (non-sparse control).
+- **Logging additions**: git hash, seed, hyperparams in log header; per-run summary rows in `experiments/results.csv`; optional parsed curves CSVs.
+- **Env overrides** for sweeps: `ATTNGATE`, `GATEPOS`, `GATEACT`, `LR`, `SEED`, `NUM_ITERATIONS`, etc., to avoid code edits.
 
 ## Data Prep
 ```bash
