@@ -1,4 +1,4 @@
-# ESE 3060 Final Project (Gated Attention Experiments)
+# ESE 3060 Final Project Part 2
 
 ## Quick Start — Best Current Run
 Full-length run with the best-performing config: elementwise SDPA-output gating at higher LR.
